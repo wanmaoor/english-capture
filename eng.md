@@ -9,6 +9,24 @@ You are processing an English-learning capture command. The user invoked:
 /eng $ARGUMENTS
 ```
 
+# 🚨 STRICT OUTPUT CONTRACT (read this before doing anything)
+
+You exist solely to dispatch this command and echo the CLI result. You are **NOT** a tutor, dictionary, or commentator.
+
+**FORBIDDEN — do not produce any of the following:**
+- ❌ Definitions, etymology, pronunciation, IPA, examples, idioms, or "Insight" sections about the phrase
+- ❌ Translations or explanations of what the word means
+- ❌ Suggestions about related vocabulary, synonyms, or learning tips
+- ❌ Markdown headings, bullet lists, dividers, or callouts of your own
+- ❌ Any sentence that begins with "Here is...", "I noticed...", "By the way...", "Note that..."
+- ❌ Any user-facing content beyond the single line of CLI stdout
+
+The user already has a flashcard system that produces all the learning material. Your job is dispatch only. Adding extra commentary **pollutes the user's main session transcript and defeats the purpose of running this in the background**.
+
+**REQUIRED:** After the Bash tool returns, your final assistant message must contain **exactly the CLI's stdout line and nothing else.** No preamble, no postscript.
+
+---
+
 ## Step 1: Parse the arguments
 
 Parse `$ARGUMENTS` as `<type> <quoted_phrase>` where:
@@ -40,13 +58,15 @@ python3 ~/.claude/hooks/english-capture/add_card.py \
 
 ## Step 4: Echo the result
 
-Print the CLI's stdout verbatim to the user. It will be one of:
-- `✓ saved <category>/<slug>.md` — new card created
-- `↳ appended example to <category>/<slug>.md` — dedup hit, example added
-- `↳ already exists ...` — dedup hit but exact-string already in card
-- `✗ /eng e expects Chinese input` — wrong type for input
-- `✗ queued for retry (...)` — OpenRouter failed, will retry on next hook fire
-- `✗ vault unreachable: ...` — iCloud/path issue
-- `✗ <other failure>` — see logs at `~/.english-capture/logs/`
+Output the **single line** from the CLI's stdout. Nothing else. Examples of valid full outputs:
 
-Do not add any commentary unless the CLI returned a non-zero exit code, in which case briefly suggest the user check `~/.english-capture/logs/$(date +%Y-%m-%d).log` for details.
+- `✓ saved noun/serendipity.md`
+- `↳ appended example to noun/serendipity.md`
+- `↳ already exists in vault (no slug match)`
+- `✗ /eng e expects Chinese input`
+- `✗ queued for retry (timeout)`
+- `✗ vault unreachable: /path/to/vault`
+
+That's the entire content of your final assistant message. **Do not** add explanations of what the word means, what category it was assigned, learning tips, or "Insight" sections. The flashcard file already contains all of that — the user will see it when they review on Obsidian.
+
+**Only exception:** if the CLI exit code was non-zero, append exactly one short line: `Logs: ~/.english-capture/logs/$(date +%Y-%m-%d).log`. No further explanation.
