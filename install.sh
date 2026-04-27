@@ -64,8 +64,36 @@ install() {
         c_err "Set up Obsidian + iCloud sync first, then re-run."
         exit 1
     fi
-    DEFAULT_VAULT=$(find "$OBSIDIAN_BASE" -maxdepth 1 -mindepth 1 -type d | head -n 1)
+
+    # A real Obsidian vault is identified by a .obsidian/ subdirectory.
+    # The vault root might be OBSIDIAN_BASE itself, or a child directory of it.
+    VAULT_CANDIDATES=()
+    if [[ -d "$OBSIDIAN_BASE/.obsidian" ]]; then
+        VAULT_CANDIDATES+=("$OBSIDIAN_BASE")
+    fi
+    while IFS= read -r -d '' obsidian_dir; do
+        vault_root="$(dirname "$obsidian_dir")"
+        # Skip if we've already added the base
+        if [[ "$vault_root" != "$OBSIDIAN_BASE" ]]; then
+            VAULT_CANDIDATES+=("$vault_root")
+        fi
+    done < <(find "$OBSIDIAN_BASE" -mindepth 2 -maxdepth 3 -type d -name ".obsidian" -print0 2>/dev/null)
+
+    if [[ ${#VAULT_CANDIDATES[@]} -eq 0 ]]; then
+        c_err "No Obsidian vault found under $OBSIDIAN_BASE"
+        c_err "(Looking for any directory containing a .obsidian/ subdirectory.)"
+        c_err "Open Obsidian and let it sync at least one vault, then re-run."
+        exit 1
+    fi
+
+    DEFAULT_VAULT="${VAULT_CANDIDATES[0]}"
     c_ok "Obsidian vault detected: $DEFAULT_VAULT"
+    if [[ ${#VAULT_CANDIDATES[@]} -gt 1 ]]; then
+        c_warn "Other vaults also found (you can pick a different one at the prompt below):"
+        for v in "${VAULT_CANDIDATES[@]:1}"; do
+            printf "    %s\n" "$v"
+        done
+    fi
 
     # 2. Bootstrap venv (fresh-Mac case)
     c_step "2/7 venv bootstrap"
