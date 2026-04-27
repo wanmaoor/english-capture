@@ -33,9 +33,10 @@ uninstall() {
 
     if [[ -f "$SETTINGS_PATH" ]] && command -v jq >/dev/null; then
         cp "$SETTINGS_PATH" "$SETTINGS_PATH.bak.$TODAY"
-        # Remove any Stop entry whose command references our grammar_hook.py
+        # CC Stop hook schema is nested: hooks.Stop[].hooks[].command
+        # Drop any Stop group whose hooks contain a command referencing our grammar_hook.py
         jq --arg path "$REPO_DIR/grammar_hook.py" \
-           '(.hooks.Stop // []) |= map(select(.command | contains($path) | not))' \
+           '.hooks.Stop |= map(select(.hooks // [] | any(.command | contains($path)) | not))' \
            "$SETTINGS_PATH" > "$SETTINGS_PATH.tmp"
         mv "$SETTINGS_PATH.tmp" "$SETTINGS_PATH"
         c_ok "removed Stop hook entry from $SETTINGS_PATH (backup: $SETTINGS_PATH.bak.$TODAY)"
@@ -126,12 +127,13 @@ install() {
     fi
     cp "$SETTINGS_PATH" "$SETTINGS_PATH.bak.$TODAY"
 
+    # CC Stop hook schema is nested: hooks.Stop[].hooks[].command
     EXISTS=$(jq --arg cmd "$HOOK_CMD" \
-        '[.hooks.Stop // [] | .[] | select(.command == $cmd)] | length' \
+        '[.hooks.Stop // [] | .[] | .hooks // [] | .[] | select(.command == $cmd)] | length' \
         "$SETTINGS_PATH")
     if [[ "$EXISTS" == "0" ]]; then
         jq --arg cmd "$HOOK_CMD" \
-           '.hooks.Stop = ((.hooks.Stop // []) + [{"command": $cmd}])' \
+           '.hooks.Stop = ((.hooks.Stop // []) + [{"hooks": [{"type": "command", "command": $cmd, "timeout": 90, "async": true}]}])' \
            "$SETTINGS_PATH" > "$SETTINGS_PATH.tmp"
         mv "$SETTINGS_PATH.tmp" "$SETTINGS_PATH"
         c_ok "added Stop hook entry (backup: $SETTINGS_PATH.bak.$TODAY)"
