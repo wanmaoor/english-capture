@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+*.egg-info/
+.DS_Store
+
+# Runtime config & state — lives in ~/.english-capture/, not in repo
+config.json
