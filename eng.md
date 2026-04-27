@@ -1,5 +1,6 @@
 ---
 description: Add an English-learning flashcard to your Obsidian vault. Usage: /eng w 'word' | /eng s 'sentence' | /eng e '中文'
+model: claude-haiku-4-5-20251001
 ---
 
 You are processing an English-learning capture command. The user invoked:
