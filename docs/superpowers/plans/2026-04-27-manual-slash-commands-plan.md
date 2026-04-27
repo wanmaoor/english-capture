@@ -76,8 +76,9 @@
 **Files:**
 - Delete: all `.py` files in repo root, `config.example.json`, `user_profile.md`, `pyproject.toml`, `tests/test_*.py`, `tests/__init__.py`, `tests/fixtures/__init__.py`, `__pycache__/`, `.pytest_cache/`
 - Keep: `docs/` (contains the spec and this plan), `tests/fixtures/mini-vault/` (reusable test fixture data)
-- Keep: `RETIREMENT.md` (refers to the V1 retired repo, still informational)
 - Create: `.gitignore` (overwrite the existing V2 one)
+
+> Note: the V1 `~/projects/english-copilot/RETIREMENT.md` lives in the *retired* V1 repo, NOT in this hook directory. Earlier drafts of this plan mistakenly listed it as something to keep here.
 
 - [ ] **Step 1: Verify gh CLI is authenticated as `wanmaoor`**
 
@@ -93,7 +94,7 @@ Expected: `✓ Logged in to github.com account wanmaoor`. **If you see a differe
 cd ~/.claude/hooks/english-capture && ls *.py *.json *.md *.toml 2>/dev/null
 ```
 
-Expected V2 files to disappear: `capture.py`, `dedup.py`, `explicit_terms.py`, `logger.py`, `md_writer.py`, `openrouter_client.py`, `prompt_builder.py`, `queue.py`, `transcript.py`, `config.example.json`, `user_profile.md`, `pyproject.toml`. Note `RETIREMENT.md` — that one stays.
+Expected V2 files to disappear: `capture.py`, `dedup.py`, `explicit_terms.py`, `logger.py`, `md_writer.py`, `openrouter_client.py`, `prompt_builder.py`, `queue.py`, `transcript.py`, `config.example.json`, `user_profile.md`, `pyproject.toml`.
 
 - [ ] **Step 3: Physically delete V2 files (regular `rm`, no git involvement yet)**
 
@@ -118,7 +119,7 @@ cd ~/.claude/hooks/english-capture && ls -la
 ls tests/ tests/fixtures/
 ```
 
-Expected at root: `docs/`, `tests/`, `RETIREMENT.md`, `.gitignore` (the V2 one — about to be overwritten). Inside `tests/`: only `fixtures/`. Inside `tests/fixtures/`: `mini-vault/` directory (with sample card md files).
+Expected at root: `docs/`, `tests/`, `.gitignore` (the V2 one — about to be overwritten). Inside `tests/`: only `fixtures/`. Inside `tests/fixtures/`: `mini-vault/` directory (with sample card md files).
 
 - [ ] **Step 6: Overwrite `.gitignore` with the new content**
 
@@ -150,7 +151,7 @@ Verify what's about to be committed (must NOT include any V2 .py files or user_p
 cd ~/.claude/hooks/english-capture && git status --short
 ```
 
-Expected staged additions: `.gitignore`, `RETIREMENT.md`, `docs/...`, `tests/fixtures/mini-vault/...`. Nothing else. **If you see anything unexpected, STOP and report — do not commit.**
+Expected staged additions: `.gitignore`, `docs/...`, `tests/fixtures/mini-vault/...`. Nothing else. **If you see anything unexpected, STOP and report — do not commit.**
 
 Then commit:
 
