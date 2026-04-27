@@ -1,0 +1,4 @@
+{
+  "hook_event_name": "Stop",
+  "transcript_path": "tests/fixtures/sample_cc_transcript.jsonl"
+}

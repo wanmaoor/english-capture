@@ -1,0 +1,6 @@
+{
+  "has_error": true,
+  "original": "I have went to the store yesterday.",
+  "corrected": "I went to the store yesterday.",
+  "errors": [{"type": "tense", "explain": "have went → went：过去时不应使用 have + 过去分词。"}]
+}
