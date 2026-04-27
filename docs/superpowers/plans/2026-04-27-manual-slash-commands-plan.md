@@ -12,6 +12,26 @@
 
 ---
 
+## Development environment notes
+
+Homebrew Python on macOS is PEP 668 externally-managed, so `pip install` against the system interpreter is blocked. Task 0.3 creates `~/.claude/hooks/english-capture/.venv/` (gitignored). **All `pytest` and `python` invocations in subsequent tasks must use the venv:**
+
+```bash
+~/.claude/hooks/english-capture/.venv/bin/pytest tests/test_X.py -v
+~/.claude/hooks/english-capture/.venv/bin/python add_card.py --help
+```
+
+Or activate the venv in the shell session:
+
+```bash
+source ~/.claude/hooks/english-capture/.venv/bin/activate
+pytest tests/test_X.py -v   # now plain `pytest` works
+```
+
+When the second Mac runs `install.sh` for the first time, `install.sh` should also bootstrap a fresh `.venv/` and `pip install -e ".[dev]"` (this will be added in Task 11).
+
+---
+
 ## File structure (final state after all tasks)
 
 ```

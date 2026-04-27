@@ -6,5 +6,8 @@ __pycache__/
 *.egg-info/
 .DS_Store
 
+# Local virtualenv — Homebrew Python is PEP 668 protected, so dev deps live here
+.venv/
+
 # Runtime config & state — lives in ~/.english-capture/, not in repo
 config.json
