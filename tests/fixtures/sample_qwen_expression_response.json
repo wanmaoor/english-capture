@@ -1,0 +1,9 @@
+{
+  "chinese": "这个 PR 我先放一放",
+  "idiomatic_english": [
+    "I'll put this PR on the back burner for now.",
+    "Let me park this PR for a bit."
+  ],
+  "use_case": "工作中需要暂时搁置某事但不放弃。",
+  "anti_example": "I will pause this PR — 太字面，母语者更偏好 back burner / park。"
+}

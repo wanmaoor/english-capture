@@ -1,0 +1,7 @@
+{
+  "phrase": "cardinality estimation",
+  "category": "noun",
+  "translation_zh": "基数估计",
+  "memory_tip": "数据库查询规划器估算结果行数。",
+  "context_sentence": "This query suffers from cardinality estimation errors on the join."
+}

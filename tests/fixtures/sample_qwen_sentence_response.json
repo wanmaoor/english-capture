@@ -1,0 +1,6 @@
+{
+  "original": "Despite the migration succeeding, downstream consumers reported stale reads.",
+  "translation_zh": "尽管迁移成功了，下游消费者还是报告读到了旧数据。",
+  "grammar_points": ["Despite + 动名词短语 等价于 Although + 从句"],
+  "key_vocab": "stale reads（脏读 / 旧读）"
+}
