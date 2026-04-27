@@ -1,0 +1,4 @@
+{"type": "user", "message": {"content": "Help me debug this query"}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "This query suffers from cardinality estimation errors."}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "content": "ok"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "After tool result, here is more analysis."}]}}
