@@ -35,7 +35,7 @@ def fake_config(tmp_vault: Path, monkeypatch, tmp_path: Path):
 
 def test_word_type_writes_card(fake_config, tmp_vault: Path, capsys):
     fake_response = _load_fixture("sample_qwen_word_response.json")
-    with patch("add_card.qwen", return_value=fake_response):
+    with patch("add_card.chat_json", return_value=fake_response):
         rc = add_card.main([
             "--type", "w",
             "--phrase", "cardinality estimation",
@@ -52,29 +52,29 @@ def test_word_type_writes_card(fake_config, tmp_vault: Path, capsys):
 def test_word_dedup_appends_example(fake_config, tmp_vault: Path, capsys):
     fake_response = _load_fixture("sample_qwen_word_response.json")
     # First call: write
-    with patch("add_card.qwen", return_value=fake_response):
+    with patch("add_card.chat_json", return_value=fake_response):
         add_card.main([
             "--type", "w", "--phrase", "cardinality estimation",
-            "--context", "first usage of the term here.",
+            "--context", "cardinality estimation errors caused slow joins.",
         ])
     capsys.readouterr()
     # Second call: should hit dedup path (no Qwen call expected)
-    with patch("add_card.qwen") as mock_qwen:
+    with patch("add_card.chat_json") as mock_llm:
         rc = add_card.main([
             "--type", "w", "--phrase", "cardinality estimation",
-            "--context", "second different usage in another query.",
+            "--context", "poor cardinality estimation led to a bad plan.",
         ])
-        mock_qwen.assert_not_called()
+        mock_llm.assert_not_called()
     assert rc == 0
     out = capsys.readouterr().out
     assert "↳ appended example" in out
     card = tmp_vault / "20-Areas" / "英语" / "noun" / "cardinality-estimation.md"
-    assert "second different usage" in card.read_text()
+    assert "poor cardinality estimation" in card.read_text()
 
 
 def test_sentence_type_writes_card(fake_config, tmp_vault: Path, capsys):
     fake_response = _load_fixture("sample_qwen_sentence_response.json")
-    with patch("add_card.qwen", return_value=fake_response):
+    with patch("add_card.chat_json", return_value=fake_response):
         rc = add_card.main([
             "--type", "s",
             "--phrase", "Despite the migration succeeding, downstream consumers reported stale reads.",
@@ -88,7 +88,7 @@ def test_sentence_type_writes_card(fake_config, tmp_vault: Path, capsys):
 
 def test_expression_type_writes_card(fake_config, tmp_vault: Path, capsys):
     fake_response = _load_fixture("sample_qwen_expression_response.json")
-    with patch("add_card.qwen", return_value=fake_response):
+    with patch("add_card.chat_json", return_value=fake_response):
         rc = add_card.main([
             "--type", "e",
             "--phrase", "这个 PR 我先放一放",
@@ -98,6 +98,22 @@ def test_expression_type_writes_card(fake_config, tmp_vault: Path, capsys):
     out = capsys.readouterr().out
     assert "✓ saved" in out
     assert "expression/" in out
+
+
+def test_word_context_without_phrase_is_dropped(fake_config, tmp_vault: Path, capsys):
+    """Context that doesn't contain the phrase should not appear in the card."""
+    fake_response = _load_fixture("sample_qwen_word_response.json")
+    with patch("add_card.chat_json", return_value=fake_response):
+        rc = add_card.main([
+            "--type", "w",
+            "--phrase", "cardinality estimation",
+            "--context", "some unrelated sentence about databases.",
+        ])
+    assert rc == 0
+    card = tmp_vault / "20-Areas" / "英语" / "noun" / "cardinality-estimation.md"
+    text = card.read_text()
+    assert "unrelated sentence" not in text
+    assert "原文上下文" not in text
 
 
 def test_expression_rejects_non_chinese(fake_config, capsys):
@@ -111,11 +127,11 @@ def test_expression_rejects_non_chinese(fake_config, capsys):
     assert "expects Chinese" in out
 
 
-def test_openrouter_failure_queues_and_reports(fake_config, capsys, tmp_path: Path, monkeypatch):
+def test_llm_failure_queues_and_reports(fake_config, capsys, tmp_path: Path, monkeypatch):
     queue_path = tmp_path / "queue.json"
     monkeypatch.setenv("ENGLISH_CAPTURE_QUEUE", str(queue_path))
-    from openrouter import OpenRouterError
-    with patch("add_card.qwen", side_effect=OpenRouterError("timeout")):
+    from llm import LLMError
+    with patch("add_card.chat_json", side_effect=LLMError("timeout")):
         rc = add_card.main([
             "--type", "w", "--phrase", "novel-word",
             "--context", "...",

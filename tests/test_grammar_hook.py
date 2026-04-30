@@ -16,8 +16,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 @pytest.fixture
 def fake_env(tmp_vault: Path, tmp_path: Path, monkeypatch):
     cfg = {
-        "openrouter_api_key": "test-key",
-        "openrouter_model": "qwen/qwen3-235b-a22b-2507",
+        "deepseek_api_key": "test-key",
         "vault_path": str(tmp_vault),
         "timeout_seconds": 30,
     }
@@ -55,27 +54,27 @@ def test_skips_when_transcript_missing(fake_env, monkeypatch):
 def test_skips_slash_command_input(fake_env, tmp_path: Path, monkeypatch):
     t = _make_transcript(tmp_path, "/eng w 'foo'")
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
-    with patch("grammar_hook.qwen") as mock_qwen:
+    with patch("grammar_hook.chat_json") as mock_llm:
         rc = grammar_hook.main()
-        mock_qwen.assert_not_called()
+        mock_llm.assert_not_called()
     assert rc == 0
 
 
 def test_skips_short_input(fake_env, tmp_path: Path, monkeypatch):
     t = _make_transcript(tmp_path, "yes do it")  # 3 words
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
-    with patch("grammar_hook.qwen") as mock_qwen:
+    with patch("grammar_hook.chat_json") as mock_llm:
         rc = grammar_hook.main()
-        mock_qwen.assert_not_called()
+        mock_llm.assert_not_called()
     assert rc == 0
 
 
 def test_skips_chinese_input(fake_env, tmp_path: Path, monkeypatch):
     t = _make_transcript(tmp_path, "请帮我修复这个数据库查询的性能问题")
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
-    with patch("grammar_hook.qwen") as mock_qwen:
+    with patch("grammar_hook.chat_json") as mock_llm:
         rc = grammar_hook.main()
-        mock_qwen.assert_not_called()
+        mock_llm.assert_not_called()
     assert rc == 0
 
 
@@ -83,7 +82,7 @@ def test_writes_grammar_card_when_error(fake_env, tmp_vault: Path, tmp_path: Pat
     t = _make_transcript(tmp_path, "I have went to the store yesterday morning.")
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
     fake = json.loads((FIXTURES / "sample_qwen_grammar_response.json").read_text())
-    with patch("grammar_hook.qwen", return_value=fake):
+    with patch("grammar_hook.chat_json", return_value=fake):
         rc = grammar_hook.main()
     assert rc == 0
     grammar_dir = tmp_vault / "20-Areas" / "英语" / "grammar"
@@ -101,11 +100,25 @@ def test_no_card_when_no_error(fake_env, tmp_vault: Path, tmp_path: Path, monkey
         "corrected": "I went to the store yesterday morning successfully.",
         "errors": [],
     }
-    with patch("grammar_hook.qwen", return_value=no_error_response):
+    with patch("grammar_hook.chat_json", return_value=no_error_response):
         rc = grammar_hook.main()
     assert rc == 0
     grammar_dir = tmp_vault / "20-Areas" / "英语" / "grammar"
     assert not list(grammar_dir.glob("*.md"))
+
+
+def test_skips_mixed_chinese_with_english_jargon(fake_env, tmp_path: Path, monkeypatch):
+    """Regression: Chinese sentence with embedded tech terms (more English chars than
+    Chinese chars) used to bypass the dominance filter. Now any CJK char → skip."""
+    t = _make_transcript(
+        tmp_path,
+        "看下yxyw-front昨天的提交，关于修复mapbox access token expired 的问题"
+    )
+    monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
+    with patch("grammar_hook.chat_json") as mock_llm:
+        rc = grammar_hook.main()
+        mock_llm.assert_not_called()
+    assert rc == 0
 
 
 def test_skips_already_checked(fake_env, tmp_vault: Path, tmp_path: Path, monkeypatch):
@@ -119,17 +132,17 @@ def test_skips_already_checked(fake_env, tmp_vault: Path, tmp_path: Path, monkey
     )
     t = _make_transcript(tmp_path, "I have went to the store yesterday morning.")
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
-    with patch("grammar_hook.qwen") as mock_qwen:
+    with patch("grammar_hook.chat_json") as mock_llm:
         rc = grammar_hook.main()
-        mock_qwen.assert_not_called()
+        mock_llm.assert_not_called()
     assert rc == 0
 
 
-def test_queues_on_openrouter_failure(fake_env, tmp_path: Path, monkeypatch):
+def test_queues_on_llm_failure(fake_env, tmp_path: Path, monkeypatch):
     t = _make_transcript(tmp_path, "I have went to the store yesterday morning.")
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
-    from openrouter import OpenRouterError
-    with patch("grammar_hook.qwen", side_effect=OpenRouterError("timeout")):
+    from llm import LLMError
+    with patch("grammar_hook.chat_json", side_effect=LLMError("timeout")):
         rc = grammar_hook.main()
     assert rc == 0  # hook always returns 0 to not block CC
     queue_path = Path(os.environ["ENGLISH_CAPTURE_QUEUE"])
@@ -147,11 +160,25 @@ def test_drains_queue_first(fake_env, tmp_path: Path, tmp_vault: Path, monkeypat
     t = _make_transcript(tmp_path, "I has been working here since 2020 happily.")
     monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
     fake = json.loads((FIXTURES / "sample_qwen_grammar_response.json").read_text())
-    with patch("grammar_hook.qwen", return_value=fake) as mock_qwen:
+    with patch("grammar_hook.chat_json", return_value=fake) as mock_llm:
         rc = grammar_hook.main()
         # Once for queue drain, once for current input
-        assert mock_qwen.call_count == 2
+        assert mock_llm.call_count == 2
     assert rc == 0
     # Queue should be empty after successful drain
     if queue_path.exists():
         assert json.loads(queue_path.read_text()) == []
+
+
+def test_uses_deepseek_provider_by_default(fake_env, tmp_path: Path, tmp_vault: Path, monkeypatch):
+    """Regression: grammar must dispatch to the deepseek provider, not openrouter/qwen."""
+    t = _make_transcript(tmp_path, "I has been working here since 2020 happily.")
+    monkeypatch.setattr("sys.stdin", _stdin_event({"hook_event_name": "Stop", "transcript_path": str(t)}))
+    fake = json.loads((FIXTURES / "sample_qwen_grammar_response.json").read_text())
+    with patch("grammar_hook.chat_json", return_value=fake) as mock_llm:
+        grammar_hook.main()
+        kwargs = mock_llm.call_args.kwargs
+        assert kwargs["provider"] == "deepseek"
+        assert kwargs["api_key"] == "test-key"
+        # Model not pinned in test config → adapter falls back to provider default.
+        assert kwargs["model"] is None

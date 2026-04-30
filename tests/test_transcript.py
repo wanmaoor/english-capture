@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from transcript import (
+    contains_chinese,
     extract_last_user_input,
     is_chinese_dominant,
     read_transcript,
@@ -78,3 +79,23 @@ def test_extract_last_user_input_from_fixture():
     fixture = Path(__file__).parent / "fixtures" / "sample_cc_transcript.jsonl"
     messages = read_transcript(str(fixture))
     assert extract_last_user_input(messages) == "Help me debug this query"
+
+
+def test_contains_chinese_pure_english():
+    assert contains_chinese("hello world") is False
+
+
+def test_contains_chinese_pure_chinese():
+    assert contains_chinese("你好") is True
+
+
+def test_contains_chinese_jargon_heavy_mixed_returns_true():
+    # The exact regression input that bypassed is_chinese_dominant.
+    # English chars outnumber Chinese chars, but contains_chinese must catch it.
+    text = "看下yxyw-front昨天的提交，关于修复mapbox access token expired 的问题"
+    assert is_chinese_dominant(text) is False  # documents the prior bug
+    assert contains_chinese(text) is True
+
+
+def test_contains_chinese_empty_returns_false():
+    assert contains_chinese("") is False

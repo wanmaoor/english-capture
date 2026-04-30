@@ -16,8 +16,8 @@ from pathlib import Path
 # Ensure sibling modules importable when invoked directly
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from llm import LLMError, chat_json
 from logger import Logger
-from openrouter import OpenRouterError, qwen
 from prompts import (
     EXPRESSION_SCHEMA,
     SENTENCE_SCHEMA,
@@ -68,12 +68,24 @@ def find_existing_card_path(phrase: str, vault_root: Path, type_letter: str) -> 
     return None
 
 
+def _phrase_in_context(phrase: str, context: str) -> bool:
+    return bool(context) and phrase.lower() in context.lower()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Add an English-learning flashcard")
     parser.add_argument("--type", choices=["w", "s", "e"], required=True)
     parser.add_argument("--phrase", required=True)
     parser.add_argument("--context", default="")
     args = parser.parse_args(argv)
+
+    # Only use context for word cards when the phrase actually appears in it;
+    # otherwise Qwen generates fresh examples and no 原文上下文 is recorded.
+    effective_context = (
+        args.context
+        if args.type != "w" or _phrase_in_context(args.phrase, args.context)
+        else ""
+    )
 
     queue_path = os.environ.get("ENGLISH_CAPTURE_QUEUE", DEFAULT_QUEUE_PATH)
     log_dir = os.environ.get("ENGLISH_CAPTURE_LOGS", DEFAULT_LOG_DIR)
@@ -99,14 +111,15 @@ def main(argv: list[str] | None = None) -> int:
         logger.log("ERROR", f"vault unreachable: {vault_root}")
         return 4
 
-    api_key = config["openrouter_api_key"]
-    model = config.get("openrouter_model", "qwen/qwen3-235b-a22b-2507")
+    provider = config.get("vocab_provider", "openrouter")
+    api_key = config[f"{provider}_api_key"]
+    model = config.get(f"{provider}_model")
     timeout = config.get("timeout_seconds", 60)
 
     # Dedup-then-append (Strategy B)
     existing = find_existing_card_path(args.phrase, vault_root, args.type)
     if existing is not None:
-        appended = append_example(existing, args.context or args.phrase)
+        appended = append_example(existing, effective_context or args.phrase)
         rel = existing.relative_to(vault_root / "20-Areas" / "英语")
         if appended:
             print(f"↳ appended example to {rel}")
@@ -124,17 +137,18 @@ def main(argv: list[str] | None = None) -> int:
 
     # Build prompt + call Qwen
     if args.type == "w":
-        sys_p, user_msg = build_word_prompt(args.phrase, args.context)
+        sys_p, user_msg = build_word_prompt(args.phrase, effective_context)
         schema = WORD_SCHEMA
     elif args.type == "s":
-        sys_p, user_msg = build_sentence_prompt(args.phrase, args.context)
+        sys_p, user_msg = build_sentence_prompt(args.phrase, effective_context)
         schema = SENTENCE_SCHEMA
     else:  # e
-        sys_p, user_msg = build_expression_prompt(args.phrase, args.context)
+        sys_p, user_msg = build_expression_prompt(args.phrase, effective_context)
         schema = EXPRESSION_SCHEMA
 
     try:
-        qwen_result = qwen(
+        llm_result = chat_json(
+            provider=provider,
             system_prompt=sys_p,
             user_message=user_msg,
             json_schema=schema,
@@ -142,11 +156,11 @@ def main(argv: list[str] | None = None) -> int:
             model=model,
             timeout=timeout,
         )
-    except OpenRouterError as e:
+    except LLMError as e:
         queue.add({
             "type": args.type,
             "phrase": args.phrase,
-            "context": args.context,
+            "context": effective_context,
         })
         print(f"✗ queued for retry ({e})")
         logger.log("WARN", f"queued: {args.phrase[:60]} — {e}")
@@ -155,11 +169,11 @@ def main(argv: list[str] | None = None) -> int:
     # Write card
     try:
         if args.type == "w":
-            path = write_word_card(qwen_result, vault_root, source="manual_w")
+            path = write_word_card(llm_result, vault_root, source="manual_w", context=effective_context)
         elif args.type == "s":
-            path = write_sentence_card(qwen_result, vault_root, source="manual_s")
+            path = write_sentence_card(llm_result, vault_root, source="manual_s")
         else:
-            path = write_expression_card(qwen_result, vault_root, source="manual_e")
+            path = write_expression_card(llm_result, vault_root, source="manual_e")
     except (OSError, KeyError) as e:
         print(f"✗ write failed: {e}")
         logger.log("ERROR", f"write failed: {e}")

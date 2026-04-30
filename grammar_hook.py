@@ -2,8 +2,12 @@
 """CC Stop hook entry. Grammar-only mode.
 
 Reads {hook_event_name, transcript_path} from stdin (CC convention).
-Filters non-applicable inputs, then asks Qwen if there's a grammar error,
+Filters non-applicable inputs, then asks DeepSeek if there's a grammar error,
 and writes a flashcard if so. Drains retry queue first.
+
+English-only: any input containing Chinese characters is skipped, regardless
+of jargon balance. Capitalization issues are NOT treated as errors — the
+prompt explicitly tells the model to ignore them.
 """
 import json
 import os
@@ -12,13 +16,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from llm import LLMError, chat_json
 from logger import Logger
-from openrouter import OpenRouterError, qwen
 from prompts import GRAMMAR_SCHEMA, build_grammar_prompt
 from queue import QueueManager
 from transcript import (
+    contains_chinese,
     extract_last_user_input,
-    is_chinese_dominant,
     read_transcript,
 )
 from vault import grammar_already_checked, write_grammar_card
@@ -43,8 +47,8 @@ def should_skip(text: str, vault_root: Path) -> str | None:
         return "slash command"
     if len(text.split()) < 5:
         return "too short"
-    if is_chinese_dominant(text):
-        return "Chinese-dominant"
+    if contains_chinese(text):
+        return "non-English (contains Chinese)"
     if grammar_already_checked(text, vault_root):
         return "already checked"
     return None
@@ -53,16 +57,18 @@ def should_skip(text: str, vault_root: Path) -> str | None:
 def check_one(text: str, config: dict, logger: Logger, queue: QueueManager, vault_root: Path) -> None:
     """Check one input; write grammar card if has_error; queue on failure."""
     sys_p, user_msg = build_grammar_prompt(text)
+    provider = config.get("grammar_provider", "deepseek")
     try:
-        result = qwen(
+        result = chat_json(
+            provider=provider,
             system_prompt=sys_p,
             user_message=user_msg,
+            api_key=config[f"{provider}_api_key"],
             json_schema=GRAMMAR_SCHEMA,
-            api_key=config["openrouter_api_key"],
-            model=config.get("openrouter_model", "qwen/qwen3-235b-a22b-2507"),
+            model=config.get(f"{provider}_model"),
             timeout=config.get("timeout_seconds", 60),
         )
-    except OpenRouterError as e:
+    except LLMError as e:
         queue.add({"type": "grammar", "input": text})
         logger.log("WARN", f"grammar check queued: {e}")
         return

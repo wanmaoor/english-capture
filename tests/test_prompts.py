@@ -27,7 +27,7 @@ def _has_json_schema_shape(schema: dict) -> bool:
 
 def test_word_schema_shape():
     assert _has_json_schema_shape(WORD_SCHEMA)
-    expected = {"phrase", "category", "translation_zh", "memory_tip", "context_sentence"}
+    expected = {"phrase", "category", "phonetic", "cefr", "translation_zh", "description", "usage_examples"}
     assert set(WORD_SCHEMA["required"]) == expected
 
 
@@ -92,3 +92,18 @@ def test_word_prompt_asks_for_chinese_translation():
 def test_grammar_prompt_asks_for_has_error_judgment():
     sys_p, _ = build_grammar_prompt("x")
     assert "has_error" in sys_p or "grammar" in sys_p.lower()
+
+
+def test_grammar_prompt_explicitly_excludes_capitalization():
+    """Regression: model used to flag 'read → Read' as a capitalization error."""
+    sys_p, _ = build_grammar_prompt("x")
+    lower = sys_p.lower()
+    assert "capitalization" in lower
+    # The prompt must instruct the model NOT to flag capitalization issues.
+    assert "do not flag" in lower or "not errors" in lower or "are not errors" in lower
+
+
+def test_grammar_prompt_mentions_json_for_deepseek_mode():
+    """DeepSeek json_object mode requires the word 'JSON' in the prompt."""
+    sys_p, _ = build_grammar_prompt("x")
+    assert "JSON" in sys_p or "json" in sys_p

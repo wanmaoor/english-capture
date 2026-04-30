@@ -72,3 +72,13 @@ def is_chinese_dominant(text: str) -> bool:
     if total == 0:
         return False
     return chinese / total > 0.5
+
+
+def contains_chinese(text: str) -> bool:
+    """True if text contains any CJK Unified Ideograph.
+
+    Used by the grammar hook for an English-only filter — if any Chinese
+    character appears, the input is not treated as a grammar-check candidate
+    even when English tech jargon outweighs the Chinese by character count.
+    """
+    return any("一" <= ch <= "鿿" for ch in text)
