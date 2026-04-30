@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Obsidian vault operations: read, write, dedup, append-example.
 
 Cards live at <vault_root>/20-Areas/英语/{category}/<slug>.md.

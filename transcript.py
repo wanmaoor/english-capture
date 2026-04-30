@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Parse Claude Code transcript JSONL and extract the last user input.
 
 Also exposes is_chinese_dominant() for filter logic shared by /eng e and grammar hook.

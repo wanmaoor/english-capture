@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Unified LLM adapter for OpenAI-compatible chat/completions providers.
 
 Single `chat_json()` entry point. The provider registry declares each

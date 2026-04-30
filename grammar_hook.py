@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """CC Stop hook entry. Grammar-only mode.
 
 Reads {hook_event_name, transcript_path} from stdin (CC convention).

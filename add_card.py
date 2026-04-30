@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """CLI invoked by the /eng slash command. Writes a flashcard to the vault.
 
 Usage:

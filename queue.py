@@ -1,4 +1,6 @@
-"""File-backed retry queue for failed OpenRouter calls."""
+from __future__ import annotations
+
+"""File-backed retry queue for failed LLM calls."""
 import json
 import os
 from typing import Any
