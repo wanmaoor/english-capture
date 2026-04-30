@@ -47,9 +47,11 @@ def test_write_word_card_creates_file_in_category_dir(tmp_vault: Path):
     item = {
         "phrase": "cardinality estimation",
         "category": "noun",
+        "phonetic": "/ˌkɑːdɪˈnælɪti ˌestɪˈmeɪʃən/",
+        "cefr": "C1",
         "translation_zh": "基数估计",
-        "memory_tip": "数据库查询规划器估算结果行数",
-        "context_sentence": "...cardinality estimation errors on the join...",
+        "description": "数据库查询规划器用于估算查询结果行数的技术。",
+        "usage_examples": [{"en": "Cardinality estimation errors on the join caused slow queries.", "zh": "联接上的基数估计误差导致查询变慢。"}],
     }
     path = write_word_card(item, tmp_vault, source="manual_w")
     assert path.exists()
@@ -66,9 +68,11 @@ def test_write_word_card_slugifies_spaces(tmp_vault: Path):
     item = {
         "phrase": "Hello World",
         "category": "noun",
+        "phonetic": "/həˈloʊ wɜːrld/",
+        "cefr": "A1",
         "translation_zh": "你好世界",
-        "memory_tip": "x",
-        "context_sentence": "y",
+        "description": "x",
+        "usage_examples": [{"en": "y", "zh": "y"}],
     }
     path = write_word_card(item, tmp_vault, source="manual_w")
     assert path.name == "hello-world.md"
@@ -130,9 +134,11 @@ def test_phrase_exists_finds_existing_word_card(tmp_vault: Path):
     item = {
         "phrase": "derive",
         "category": "verb",
+        "phonetic": "/dɪˈraɪv/",
+        "cefr": "B2",
         "translation_zh": "得出",
-        "memory_tip": "x",
-        "context_sentence": "y",
+        "description": "x",
+        "usage_examples": [{"en": "y", "zh": "y"}],
     }
     write_word_card(item, tmp_vault, source="manual_w")
     assert phrase_exists("derive", tmp_vault) is True
@@ -142,9 +148,11 @@ def test_phrase_exists_normalizes(tmp_vault: Path):
     item = {
         "phrase": "stale reads",
         "category": "noun",
+        "phonetic": "/steɪl riːdz/",
+        "cefr": "C1",
         "translation_zh": "脏读",
-        "memory_tip": "x",
-        "context_sentence": "y",
+        "description": "x",
+        "usage_examples": [{"en": "y", "zh": "y"}],
     }
     write_word_card(item, tmp_vault, source="manual_w")
     assert phrase_exists("Stale Reads.", tmp_vault) is True
@@ -179,33 +187,30 @@ def test_phrase_exists_finds_expression_card_via_chinese(tmp_vault: Path):
 
 # ---------- append_example ----------
 
-def test_append_example_adds_to_existing_card(tmp_vault: Path):
-    item = {
+def _derive_item():
+    return {
         "phrase": "derive",
         "category": "verb",
+        "phonetic": "/dɪˈraɪv/",
+        "cefr": "B2",
         "translation_zh": "得出",
-        "memory_tip": "x",
-        "context_sentence": "first usage",
+        "description": "x",
+        "usage_examples": [{"en": "first usage", "zh": "第一用法"}],
     }
-    path = write_word_card(item, tmp_vault, source="manual_w")
+
+
+def test_append_example_adds_to_existing_card(tmp_vault: Path):
+    path = write_word_card(_derive_item(), tmp_vault, source="manual_w")
     appended = append_example(path, "second usage")
     assert appended is True
     text = path.read_text(encoding="utf-8")
     assert "first usage" in text
     assert "second usage" in text
-    # Both bullets present
     assert text.count("\n- ") >= 2
 
 
 def test_append_example_preserves_frontmatter(tmp_vault: Path):
-    item = {
-        "phrase": "derive",
-        "category": "verb",
-        "translation_zh": "得出",
-        "memory_tip": "x",
-        "context_sentence": "first",
-    }
-    path = write_word_card(item, tmp_vault, source="manual_w")
+    path = write_word_card(_derive_item(), tmp_vault, source="manual_w")
     append_example(path, "second")
     text = path.read_text(encoding="utf-8")
     assert text.startswith("---\n")
@@ -214,13 +219,8 @@ def test_append_example_preserves_frontmatter(tmp_vault: Path):
 
 
 def test_append_example_dedups_within_list(tmp_vault: Path):
-    item = {
-        "phrase": "derive",
-        "category": "verb",
-        "translation_zh": "得出",
-        "memory_tip": "x",
-        "context_sentence": "same usage",
-    }
+    item = _derive_item()
+    item["usage_examples"] = [{"en": "same usage", "zh": "相同用法"}]
     path = write_word_card(item, tmp_vault, source="manual_w")
     appended = append_example(path, "same usage")
     assert appended is False
@@ -229,14 +229,7 @@ def test_append_example_dedups_within_list(tmp_vault: Path):
 
 
 def test_append_example_adds_updated_field(tmp_vault: Path):
-    item = {
-        "phrase": "derive",
-        "category": "verb",
-        "translation_zh": "得出",
-        "memory_tip": "x",
-        "context_sentence": "first",
-    }
-    path = write_word_card(item, tmp_vault, source="manual_w")
+    path = write_word_card(_derive_item(), tmp_vault, source="manual_w")
     append_example(path, "second")
     text = path.read_text(encoding="utf-8")
     assert "updated:" in text
@@ -272,13 +265,15 @@ def test_grammar_already_checked_false_for_unseen(tmp_vault: Path):
 # ---------- recent_phrases ----------
 
 def test_recent_phrases_returns_most_recent(tmp_vault: Path):
-    for i, word in enumerate(["apple", "banana", "cherry"]):
+    for word in ["apple", "banana", "cherry"]:
         item = {
             "phrase": word,
             "category": "noun",
+            "phonetic": "/x/",
+            "cefr": "A1",
             "translation_zh": "x",
-            "memory_tip": "x",
-            "context_sentence": "x",
+            "description": "x",
+            "usage_examples": [{"en": "x", "zh": "x"}],
         }
         write_word_card(item, tmp_vault, source="manual_w")
     result = recent_phrases(tmp_vault, limit=10)

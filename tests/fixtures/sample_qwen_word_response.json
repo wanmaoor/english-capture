@@ -1,7 +1,18 @@
 {
   "phrase": "cardinality estimation",
   "category": "noun",
+  "phonetic": "/ˌkɑːdɪˈnælɪti ˌestɪˈmeɪʃən/",
+  "cefr": "C1",
   "translation_zh": "基数估计",
-  "memory_tip": "数据库查询规划器估算结果行数。",
-  "context_sentence": "This query suffers from cardinality estimation errors on the join."
+  "description": "数据库查询优化器用于预测查询结果行数的技术，直接影响执行计划的选择效率。",
+  "usage_examples": [
+    {
+      "en": "This query suffers from cardinality estimation errors on the join.",
+      "zh": "这条查询在联接处存在基数估计误差。"
+    },
+    {
+      "en": "The optimizer relies on cardinality estimation to choose an efficient execution plan.",
+      "zh": "优化器依赖基数估计来选择高效的执行计划。"
+    }
+  ]
 }

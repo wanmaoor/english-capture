@@ -57,16 +57,21 @@ def _area_dir(vault_root: Union[str, Path]) -> Path:
     return vault / _AREA_REL  # let writes create it
 
 
-def _frontmatter_block(fields: dict[str, str]) -> str:
+def _frontmatter_block(fields: dict) -> str:
     """Render YAML frontmatter from dict.
 
     Free-text user fields (`_QUOTED_FIELDS`) are double-quoted; enum-like fields
     (category, type, source, created, checked_at) are written unquoted so test
     substrings like ``"category: verb"`` and ``"type: sentence"`` match exactly.
+    List values are rendered as YAML sequences.
     """
     lines = ["---"]
     for k, v in fields.items():
-        if isinstance(v, str) and k in _QUOTED_FIELDS:
+        if isinstance(v, list):
+            lines.append(f"{k}:")
+            for entry in v:
+                lines.append(f"  - {entry}")
+        elif isinstance(v, str) and k in _QUOTED_FIELDS:
             escaped = v.replace('"', '\\"')
             lines.append(f'{k}: "{escaped}"')
         else:
@@ -75,7 +80,7 @@ def _frontmatter_block(fields: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def write_word_card(item: dict, vault_root: Union[str, Path], source: str) -> Path:
+def write_word_card(item: dict, vault_root: Union[str, Path], source: str, context: str = "") -> Path:
     """Write a vocabulary flashcard to <vault>/20-Areas/英语/<category>/<slug>.md."""
     area = _area_dir(vault_root)
     target_dir = area / item["category"]
@@ -85,22 +90,31 @@ def write_word_card(item: dict, vault_root: Union[str, Path], source: str) -> Pa
     out_path = target_dir / f"{slug}.md"
 
     fm = _frontmatter_block({
-        "phrase": item["phrase"],
+        "type": "english-vocab",
         "category": item["category"],
+        "cefr": item["cefr"],
+        "phrase": item["phrase"],
+        "phonetic": item["phonetic"],
         "created": date.today().isoformat(),
         "source": source,
+        "tags": ["flashcards/english/vocab"],
     })
 
-    body = f"""
-{item['phrase']}
-?
-**中文:** {item['translation_zh']}
+    examples = "\n".join(
+        f"- *{ex['en']}*（{ex['zh']}）" for ex in item["usage_examples"]
+    )
+    context_section = f"\n## 原文上下文\n\n{context}\n" if context else ""
 
-**记忆点:** {item['memory_tip']}
-
-**例句:**
-- {item['context_sentence']}
-"""
+    body = (
+        f"\n# {item['phrase']}\n\n"
+        f"{item['phrase']} {item['phonetic']}\n"
+        f"?\n"
+        f"**{item['translation_zh']}**\n\n"
+        f"{item['description']}\n"
+        f"{context_section}\n"
+        f"## 用法示例\n\n"
+        f"{examples}\n"
+    )
     out_path.write_text(fm + body, encoding="utf-8")
     return out_path
 
@@ -257,10 +271,10 @@ def append_example(card_path: Path, new_example: str) -> bool:
             count=1,
         )
 
-    if "**例句:**" in text:
+    if "## 用法示例" in text or "**例句:**" in text:
         text = text.rstrip() + f"\n- {new_example}\n"
     else:
-        text = text.rstrip() + f"\n\n**例句:**\n- {new_example}\n"
+        text = text.rstrip() + f"\n\n## 用法示例\n\n- {new_example}\n"
 
     card_path.write_text(text, encoding="utf-8")
     return True
